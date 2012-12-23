@@ -1,17 +1,20 @@
 {
   "name": "clb-modelloader",
+  "version": "0.1.0",
   "description": "clb-modelloader is a utility which loads moongoose models into a nodejs server and installs appropriate request handlers",
-  "version": "0.0.1",
   "homepage": "http://dev.cloudburo.com",
-  "author": "Felix Kuestahler",
-  "version": "0.0.1",
-  "engines": {
-    "node": "0.6.8"
-  },
+  "tags": ["nosql", "moongoose", "model"],
+  "author": "Felix Kuestahler <felix@cloudburo.com",
+  "repository": {
+      "type": "git",
+      "url": "https://github.com/talfco/clb-modelloader.git"
+    },
+  "bugs": "https://github.com/talfco/clb-modelloader/issues",
+  "engines": ["node >= 0.6.8"],
   "main": "modelLoader.js",
   "dependencies": { 
-    "mongoose" : "2.5.5",
-    "winston": "0.6.2",
-    "underscore": "1.3.1"  
+    "mongoose" : ">=2.5.5",
+    "winston": ">=0.6.2",
+    "underscore": ">=1.3.1"  
   }  
 }
