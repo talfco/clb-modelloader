@@ -22,7 +22,7 @@ module.exports = class ModelLoader
     
   # The expose will introduce its own set of request handler for handling model requests
   expose : (model, serv)->
-    collection = model.getModelName()+'s'
+    collection = model.getCollection()
     winston.info 'ModelLoader: installing request handlers for /'+collection
 
     serv.get '/'+collection, (req, res) ->

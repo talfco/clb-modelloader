@@ -14,6 +14,8 @@ module.exports = class BaseModel
       return obj;
 
   getModelName: -> @modelName
+  
+  getCollection: -> @collection
 
   getDBModel: ->  @dbModel 
 
