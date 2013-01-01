@@ -7,6 +7,7 @@ module.exports = class ModelLoader
     fs = require "fs"
     path = require "path"
  
+    winston.info "Loading models from path " + modelpath
     files = fs.readdirSync modelpath
     
     modelNames = _und.map files, (f) -> 
@@ -34,9 +35,19 @@ module.exports = class ModelLoader
         else
           res.send(docs))
 
+    serv.get '/'+collection+'/:id', (req, res) ->
+      winston.info 'ModelLoader: GET received for '+collection+'  model '+req.params.id
+      conditions  = { _id: req.params.id }
+      model.getDBModel().find(conditions, (err, docs) -> 
+        winston.info "JSON Data", docs
+        if err != null
+          res.json err, 500
+        else
+          res.send(docs))
+
     serv.put '/'+collection+'/:id', (req, res) ->
       winston.info 'ModelLoader: PUT received for model '+req.params.id
-      winston.info "JSON Data", req.body
+      winston.info "JSON Data received ", req.body
       conditions  = { _id: req.params.id }
       doc = req.body
       delete doc._id
@@ -59,7 +70,7 @@ module.exports = class ModelLoader
 
     serv.post '/'+collection, (req, res) ->
       winston.info 'ModelLoader: POST received for model '+ collection
-      winston.info "JSON Data", req.body
+      winston.info "JSON Data received ", req.body
       conditions  = { _id: req.params.id }
       doc = req.body
       obj = model.newInstance doc 
