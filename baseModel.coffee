@@ -3,9 +3,16 @@ mongoose = require "mongoose"
 
 module.exports = class BaseModel
 
-  constructor: (@modelName,@collection,@schema, props) ->
+  constructor: (@modelName,@collection,schemaJSON,props) ->
+    
+    if props.winston != undefined
+      props.winston.info "BaseModel: "+ @modelName+" - "+@collection, schemaJSON
+    @schema = new mongoose.Schema schemaJSON
     @dbModel = mongoose.model(@modelName, @schema,@collection)
-    @model = new @dbModel(props)
+    if props.doc != undefined
+      @model = new @dbModel(props.doc)
+    else
+      @model = new @dbModel()
     @schema.virtual('id').get -> return this._id
 
     @schema.methods.toBackbone = ->
