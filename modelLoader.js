@@ -51,10 +51,19 @@
         query = model.getDBModel().find({});
         return query.count(function(err, count) {
           _this.winston.info("Number of records ", count);
-          query = model.getDBModel().find({});
+          query = model.getDBModel().find().limit(20).sort({
+            "_id": 1
+          });
           return query.exec({}, function(err, docs) {
             var countStr;
             countStr = count + '';
+            _this.winston.info("Docs", docs);
+            _this.winston.info("Err", err);
+            docs.push({
+              _maxRec: countStr,
+              _limit: '10',
+              _offset: '0'
+            });
             _this.winston.info("JSON Data", docs);
             if (err !== null) {
               return res.json(err, 500);
@@ -113,22 +122,20 @@
         });
       });
       return serv.post('/' + collection, function(req, res) {
-        var conditions, doc, obj;
+        var conditions, dbModel, doc, obj;
         _this.winston.info('ModelLoader: POST received for model ' + collection);
         _this.winston.info("JSON Data received ", req.body);
         conditions = {
           _id: req.params.id
         };
         doc = req.body;
-        obj = model.newInstance({
-          doc: doc,
-          winston: _this.winston
-        });
-        _this.winston.info('ModelLoader: Save to dbmodel ' + model.getModelName());
+        _this.winston.info('ModelLoader: Creating new instance for ' + model.getModelName());
+        dbModel = model.getDBModel();
+        obj = new dbModel(doc);
         obj.save();
         _this.winston.info('ModelLoader: New record created');
-        _this.winston.info("JSON Data", obj.model);
-        return res.send(obj.model);
+        _this.winston.info(obj);
+        return res.send(obj);
       });
     };
 

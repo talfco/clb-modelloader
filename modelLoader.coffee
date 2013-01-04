@@ -34,10 +34,14 @@ module.exports = class ModelLoader
       query = model.getDBModel().find({})
       query.count  (err, count) => 
         @winston.info "Number of records ", count
-        query = model.getDBModel().find({})
+        #query = model.getDBModel().find({}).sort("_id": 1).skip(0).limit(10)
+        query = model.getDBModel().find().limit(20).sort({"_id":1}) 
+        #model.getDBModel().find().sort(name:1).limit(5).exec (err,docs) => 
         query.exec {}, (err, docs) => 
           countStr =  count+''
-          #docs.push( _maxRec: countStr, _limit: '10', _offset: '0');
+          @winston.info "Docs", docs
+          @winston.info "Err", err
+          docs.push( _maxRec: countStr, _limit: '10', _offset: '0');
           @winston.info "JSON Data", docs
           if err != null
             res.json err, 500
@@ -83,12 +87,15 @@ module.exports = class ModelLoader
       @winston.info "JSON Data received ", req.body
       conditions  = { _id: req.params.id }
       doc = req.body
-      obj = model.newInstance { doc: doc , winston: @winston } 
-      @winston.info 'ModelLoader: Save to dbmodel '+ model.getModelName()
-      obj.save()  
+      @winston.info 'ModelLoader: Creating new instance for '+ model.getModelName()
+      dbModel = model.getDBModel()
+      obj = new dbModel(doc)
+      obj.save()
+      #obj = model.newInstance { doc: doc , winston: @winston } 
+      #obj.save()  
       @winston.info 'ModelLoader: New record created'
-      @winston.info "JSON Data", obj.model
-      res.send  obj.model
+      @winston.info obj
+      res.send  obj
     
     
 
