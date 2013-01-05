@@ -13,6 +13,11 @@ module.exports = class BaseModel
       @model = new @dbModel(props.doc)
     else
       @model = new @dbModel()
+    if props.querylimit != undefined
+      @queryLimit = props.queryLimit
+    else
+      @queryLimit = 20
+    
     @schema.virtual('id').get -> return this._id
 
     @schema.methods.toBackbone = ->
@@ -28,6 +33,10 @@ module.exports = class BaseModel
 
   getDBSchema: -> @schema
 
+  getQueryLimit: -> @queryLimit
+
   save: -> @model.save()
+  
+
 
   

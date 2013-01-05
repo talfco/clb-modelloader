@@ -19,6 +19,11 @@
       } else {
         this.model = new this.dbModel();
       }
+      if (props.querylimit !== void 0) {
+        this.queryLimit = props.queryLimit;
+      } else {
+        this.queryLimit = 20;
+      }
       this.schema.virtual('id').get(function() {
         return this._id;
       });
@@ -44,6 +49,10 @@
 
     BaseModel.prototype.getDBSchema = function() {
       return this.schema;
+    };
+
+    BaseModel.prototype.getQueryLimit = function() {
+      return this.queryLimit;
     };
 
     BaseModel.prototype.save = function() {

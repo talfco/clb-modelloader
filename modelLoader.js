@@ -46,25 +46,41 @@
       collection = model.getCollection();
       this.winston.info('ModelLoader: installing request handlers for /' + collection);
       serv.get('/' + collection, function(req, res) {
-        var query;
+        var errMsg, query, skipC;
+        skipC = 0;
+        if (req.query["skip"] !== void 0) {
+          skipC = parseInt(req.query["skip"]);
+          _this.winston.info("Query Parameter 'skip' provided with value " + skipC);
+          if (isNaN(skipC)) {
+            _this.winston.info("Going to log error");
+            errMsg = {
+              'userMessage': 'Bad Request Query Parameter provided: "skip" is not at number',
+              'devMessage': 'Bad Request Query Parameter provided: "skip" is not at number',
+              'errorCode': '0001',
+              'moreInfo': 'http://api.cloudburo.ch/errors/0001'
+            };
+            res.json(errMsg, 400);
+            return;
+          }
+        }
         _this.winston.info('ModelLoader: GET for  ' + collection + ' received, sending the collection for ' + model.getDBModel().modelName);
         query = model.getDBModel().find({});
         return query.count(function(err, count) {
           _this.winston.info("Number of records ", count);
-          query = model.getDBModel().find().limit(20).sort({
+          query = model.getDBModel().find().limit(model.getQueryLimit()).skip(skipC).sort({
             "_id": 1
           });
           return query.exec({}, function(err, docs) {
-            var countStr;
+            var countStr, limitStr, skipStr;
             countStr = count + '';
-            _this.winston.info("Docs", docs);
+            limitStr = model.getQueryLimit() + '';
+            skipStr = skipC + '';
             _this.winston.info("Err", err);
             docs.push({
               _maxRec: countStr,
-              _limit: '10',
-              _offset: '0'
+              _limit: limitStr,
+              _offset: skipStr
             });
-            _this.winston.info("JSON Data", docs);
             if (err !== null) {
               return res.json(err, 500);
             } else {

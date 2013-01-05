@@ -30,25 +30,39 @@ module.exports = class ModelLoader
     @winston.info 'ModelLoader: installing request handlers for /'+collection
 
     serv.get '/'+collection, (req, res) =>
+      skipC = 0;
+      if req.query["skip"] != undefined
+        skipC = parseInt req.query["skip"]
+        @winston.info "Query Parameter 'skip' provided with value "+skipC
+        
+        if isNaN(skipC)
+          @winston.info "Going to log error"
+          errMsg = { 
+            'userMessage' : 'The application has provided a wrong request string',
+            'devMessage' : 'Bad Request Query Parameter provided: "skip" is not at number',
+            'errorCode' : '0001',
+            'moreInfo' : 'http://cloudburo.ch/api/errors/0001' 
+          }            
+          res.json errMsg, 400
+          return
+      
       @winston.info 'ModelLoader: GET for  '+collection+' received, sending the collection for '+model.getDBModel().modelName
       query = model.getDBModel().find({})
       query.count  (err, count) => 
         @winston.info "Number of records ", count
-        #query = model.getDBModel().find({}).sort("_id": 1).skip(0).limit(10)
-        query = model.getDBModel().find().limit(20).sort({"_id":1}) 
-        #model.getDBModel().find().sort(name:1).limit(5).exec (err,docs) => 
+        query = model.getDBModel().find().limit(model.getQueryLimit()).skip(skipC).sort({"_id":1})  
         query.exec {}, (err, docs) => 
           countStr =  count+''
-          @winston.info "Docs", docs
+          limitStr = model.getQueryLimit()+''
+          skipStr = skipC+''
           @winston.info "Err", err
-          docs.push( _maxRec: countStr, _limit: '10', _offset: '0');
-          @winston.info "JSON Data", docs
+          docs.push( _maxRec: countStr, _limit: limitStr, _offset: skipStr);
+          # @winston.info "JSON Data", docs
           if err != null
             res.json err, 500
           else
             res.send(docs)
         
-
     serv.get '/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: GET received for '+collection+'  model '+req.params.id
       conditions  = { _id: req.params.id }
@@ -90,9 +104,7 @@ module.exports = class ModelLoader
       @winston.info 'ModelLoader: Creating new instance for '+ model.getModelName()
       dbModel = model.getDBModel()
       obj = new dbModel(doc)
-      obj.save()
-      #obj = model.newInstance { doc: doc , winston: @winston } 
-      #obj.save()  
+      obj.save() 
       @winston.info 'ModelLoader: New record created'
       @winston.info obj
       res.send  obj
