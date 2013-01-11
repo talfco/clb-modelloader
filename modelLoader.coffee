@@ -3,7 +3,7 @@ mongoose = require "mongoose"
 
 module.exports = class ModelLoader
 
-  constructor: (@dbPath,@winston) ->
+  constructor: (@dbPath,@winston,@errDocUrl) ->
     mongoose.connect(@dbPath)  
   
   autoload: (serv,modelpath) ->
@@ -30,38 +30,41 @@ module.exports = class ModelLoader
     @winston.info 'ModelLoader: installing request handlers for /'+collection
 
     serv.get '/'+collection, (req, res) =>
-      skipC = 0;
-      if req.query["skip"] != undefined
-        skipC = parseInt req.query["skip"]
-        @winston.info "Query Parameter 'skip' provided with value "+skipC
-        
-        if isNaN(skipC)
-          @winston.info "Going to log error"
-          errMsg = { 
-            'userMessage' : 'The application has provided a wrong request string',
-            'devMessage' : 'Bad Request Query Parameter provided: "skip" is not at number',
-            'errorCode' : '0001',
-            'moreInfo' : 'http://cloudburo.ch/api/errors/0001' 
-          }            
-          res.json errMsg, 400
-          return
-      
       @winston.info 'ModelLoader: GET for  '+collection+' received, sending the collection for '+model.getDBModel().modelName
-      query = model.getDBModel().find({})
-      query.count  (err, count) => 
-        @winston.info "Number of records ", count
-        query = model.getDBModel().find().limit(model.getQueryLimit()).skip(skipC).sort({"_id":1})  
-        query.exec {}, (err, docs) => 
-          countStr =  count+''
-          limitStr = model.getQueryLimit()+''
-          skipStr = skipC+''
-          @winston.info "Err", err
-          docs.push( _maxRec: countStr, _limit: limitStr, _offset: skipStr);
-          # @winston.info "JSON Data", docs
-          if err != null
-            res.json err, 500
-          else
-            res.send(docs)
+      skipC = 0;
+      projection = undefined
+      
+      if req.query["offset"] != undefined
+        skipC = parseInt req.query["offset"]
+        @winston.info "Query Parameter 'offset' provided with value "+skipC
+        if isNaN(skipC)
+          @.createJSONErrMsg res, 400,
+            'The application has provided  wrong URL parameters  to retrieve "'+model.getCollection()+'"', 
+            'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "offset" parameter is not at number',
+            '0001',@errDocUrl+'0001'     
+          return        
+      if req.query["fields"] != undefined
+        projection = {}
+        _und.each req.query["fields"].split(","), (elem, index, list) ->
+          projection[elem] = 1
+        @winston.info("Got projection "+projection)
+
+      if req.query["maxRec"] != undefined
+        @winston.info "No count query necessary"
+        maxRec = parseInt req.query["maxRec"]
+        @winston.info "Query Parameter 'maxRec' provided with value "+maxRec
+        if isNaN(maxRec)
+          @.createJSONErrMsg res, 400,
+            'The application has provided  wrong URL parameters  to retrieve "'+model.getCollection()+'"', 
+            'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "maxRec" parameter is not at number',
+            '0002',@errDocUrl+'0002'    
+          return
+        @getCollection res,model,skipC,maxRec,projection
+      else
+        query = model.getDBModel().find({})
+        query.count  (err, count) => 
+          @winston.info "Number of records "+count+" skip "+skipC
+          @getCollection res,model,skipC,count,projection
         
     serv.get '/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: GET received for '+collection+'  model '+req.params.id
@@ -69,7 +72,10 @@ module.exports = class ModelLoader
       model.getDBModel().find(conditions, (err, docs) => 
         @winston.info "JSON Data", docs
         if err != null
-          res.json err, 500
+          @.createJSONErrMsg res, 500,
+            'There was a technical error when requesting an entity "'+model.getCollection()+'"', 
+            'There was a technical error when requesting an entity "'+model.getCollection()+'":'+err,
+            '0100',@errDocUrl+'0100' 
         else
           res.send(docs))
 
@@ -84,7 +90,10 @@ module.exports = class ModelLoader
         if err == null 
           res.send(doc)
         else
-          res.json err, 500
+          @.createJSONErrMsg res, 500,
+            'There was a technical error when updating an entity "'+model.getCollection()+'"', 
+            'There was a technical error when updating an entity "'+model.getCollection()+'":'+err,
+            '0100',@errDocUrl+'0100'
 
     serv.del '/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: DELETE received for model '+req.params.id
@@ -109,6 +118,30 @@ module.exports = class ModelLoader
       @winston.info obj
       res.send  obj
     
-    
+  createJSONErrMsg:  (res, statusCode, usrMsg, devMsg, errCode, moreInfo) ->
+    errMsg = { 
+      'userMessage' : usrMsg,
+      'devMessage' : devMsg,
+      'errorCode' : errCode,
+      'moreInfo' : moreInfo 
+    }
+    res.json errMsg, statusCode
+
+  getCollection: (res,model,skipC,count,projection) ->  
+    @winston.info "Got projection '"+projection+"'"
+    query = model.getDBModel().find({},projection).limit(model.getQueryLimit()).skip(skipC).sort({"_id":-1})  
+    query.exec {}, (err, docs) => 
+      @winston.info "Fetched records with skip "+skipC
+      countStr =  count+''
+      limitStr = model.getQueryLimit()+''
+      skipStr = skipC+''
+      docs.push( _maxRec: countStr, _limit: limitStr, _offset: skipStr);
+      if err != null
+        @.createJSONErrMsg res, 500,
+          'There was a technical error when requesting entities "'+model.getCollection()+'"', 
+          'There was a technical error when requesting entities "'+model.getCollection()+'":'+err,
+          '0100',@errDocUrl+'0100'
+      else
+        res.send(docs)
 
   
