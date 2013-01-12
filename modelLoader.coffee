@@ -3,7 +3,7 @@ mongoose = require "mongoose"
 
 module.exports = class ModelLoader
 
-  constructor: (@dbPath,@winston,@errDocUrl) ->
+  constructor: (@dbPath,@version,@winston,@errDocUrl) ->
     mongoose.connect(@dbPath)  
   
   autoload: (serv,modelpath) ->
@@ -22,14 +22,14 @@ module.exports = class ModelLoader
            modelC = require modelpath + "/" + modelName
            @winston.info "Creating mogoose object for: "+modelName
            model = new modelC({winston: @winston})        
-           @expose(model,serv)
+           @expose(model,serv) 
     
   # The expose will introduce its own set of request handler for handling model requests
   expose : (model, serv)->
     collection = model.getCollection()
     @winston.info 'ModelLoader: installing request handlers for /'+collection
 
-    serv.get '/'+collection, (req, res) =>
+    serv.get '/'+@version+'/'+collection, (req, res) =>
       @winston.info 'ModelLoader: GET for  '+collection+' received, sending the collection for '+model.getDBModel().modelName
       skipC = 0;
       projection = undefined
@@ -38,8 +38,7 @@ module.exports = class ModelLoader
         skipC = parseInt req.query["offset"]
         @winston.info "Query Parameter 'offset' provided with value "+skipC
         if isNaN(skipC)
-          @.createJSONErrMsg res, 400,
-            'The application has provided  wrong URL parameters  to retrieve "'+model.getCollection()+'"', 
+          @.createJSONErrMsg res, 400, 
             'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "offset" parameter is not at number',
             '0001',@errDocUrl+'0001'     
           return        
@@ -55,7 +54,6 @@ module.exports = class ModelLoader
         @winston.info "Query Parameter 'maxRec' provided with value "+maxRec
         if isNaN(maxRec)
           @.createJSONErrMsg res, 400,
-            'The application has provided  wrong URL parameters  to retrieve "'+model.getCollection()+'"', 
             'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "maxRec" parameter is not at number',
             '0002',@errDocUrl+'0002'    
           return
@@ -66,20 +64,19 @@ module.exports = class ModelLoader
           @winston.info "Number of records "+count+" skip "+skipC
           @getCollection res,model,skipC,count,projection
         
-    serv.get '/'+collection+'/:id', (req, res) =>
+    serv.get '/'+@version+'/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: GET received for '+collection+'  model '+req.params.id
       conditions  = { _id: req.params.id }
       model.getDBModel().find(conditions, (err, docs) => 
         @winston.info "JSON Data", docs
         if err != null
-          @.createJSONErrMsg res, 500,
-            'There was a technical error when requesting an entity "'+model.getCollection()+'"', 
+          @.createJSONErrMsg res, 500, 
             'There was a technical error when requesting an entity "'+model.getCollection()+'":'+err,
             '0100',@errDocUrl+'0100' 
         else
           res.send(docs))
 
-    serv.put '/'+collection+'/:id', (req, res) =>
+    serv.put '/'+@version+'/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: PUT received for model '+req.params.id
       @winston.info "JSON Data received ", req.body
       conditions  = { _id: req.params.id }
@@ -90,12 +87,11 @@ module.exports = class ModelLoader
         if err == null 
           res.send(doc)
         else
-          @.createJSONErrMsg res, 500,
-            'There was a technical error when updating an entity "'+model.getCollection()+'"', 
+          @.createJSONErrMsg res, 500, 
             'There was a technical error when updating an entity "'+model.getCollection()+'":'+err,
             '0100',@errDocUrl+'0100'
 
-    serv.del '/'+collection+'/:id', (req, res) =>
+    serv.del '/'+@version+'/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: DELETE received for model '+req.params.id
       conditions  = { _id: req.params.id }
       model.getDBModel().remove conditions, (err, numAffected) => 
@@ -105,7 +101,7 @@ module.exports = class ModelLoader
         else
           res.json err, 500    
 
-    serv.post '/'+collection, (req, res) =>
+    serv.post '/'+@version+'/'+collection, (req, res) =>
       @winston.info 'ModelLoader: POST received for model '+ collection
       @winston.info "JSON Data received ", req.body
       conditions  = { _id: req.params.id }
@@ -118,10 +114,9 @@ module.exports = class ModelLoader
       @winston.info obj
       res.send  obj
     
-  createJSONErrMsg:  (res, statusCode, usrMsg, devMsg, errCode, moreInfo) ->
+  createJSONErrMsg:  (res, statusCode, usrMsg, errCode, moreInfo) ->
     errMsg = { 
-      'userMessage' : usrMsg,
-      'devMessage' : devMsg,
+      'message' : usrMsg,
       'errorCode' : errCode,
       'moreInfo' : moreInfo 
     }
@@ -138,7 +133,6 @@ module.exports = class ModelLoader
       docs.push( _maxRec: countStr, _limit: limitStr, _offset: skipStr);
       if err != null
         @.createJSONErrMsg res, 500,
-          'There was a technical error when requesting entities "'+model.getCollection()+'"', 
           'There was a technical error when requesting entities "'+model.getCollection()+'":'+err,
           '0100',@errDocUrl+'0100'
       else
