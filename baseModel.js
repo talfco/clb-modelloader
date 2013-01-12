@@ -10,7 +10,7 @@
       this.modelName = modelName;
       this.collection = collection;
       if (props.winston !== void 0) {
-        props.winston.info("BaseModel: " + this.modelName + " - " + this.collection, schemaJSON);
+        props.winston.info("BaseModel: " + this.modelName + " - " + this.collection + " - schema: ", schemaJSON);
       }
       this.schema = new mongoose.Schema(schemaJSON);
       this.dbModel = mongoose.model(this.modelName, this.schema, this.collection);

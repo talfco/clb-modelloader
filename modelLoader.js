@@ -27,10 +27,11 @@
         return path.basename(f);
       });
       return _und.each(modelNames, function(modelName) {
-        var model, modelC, suffix;
+        var model, modelC, suffix, suffix1;
         if (modelName !== void 0) {
           suffix = ".coffee";
-          if (modelName.indexOf(suffix, modelName.length - suffix.length) !== -1) {
+          suffix1 = ".js";
+          if (modelName.indexOf(suffix, modelName.length - suffix.length) !== -1 || modelName.indexOf(suffix1, modelName.length - suffix1.length) !== -1) {
             modelC = require(modelpath + "/" + modelName);
             _this.winston.info("Creating mogoose object for: " + modelName);
             model = new modelC({
@@ -48,7 +49,7 @@
       collection = model.getCollection();
       this.winston.info('ModelLoader: installing request handlers for /' + collection);
       serv.get('/' + this.version + '/' + collection, function(req, res) {
-        var maxRec, projection, query, skipC;
+        var limC, limit, maxRec, projection, query, skipC;
         _this.winston.info('ModelLoader: GET for  ' + collection + ' received, sending the collection for ' + model.getDBModel().modelName);
         skipC = 0;
         projection = void 0;
@@ -58,6 +59,19 @@
           if (isNaN(skipC)) {
             _this.createJSONErrMsg(res, 400, 'Bad Request Query Parameter provided to the clb-modelloader API for "' + model.getCollection() + '": "offset" parameter is not at number', '0001', _this.errDocUrl + '0001');
             return;
+          }
+        }
+        limit = model.getQueryLimit();
+        if (req.query["limit"] !== void 0) {
+          limC = parseInt(req.query["limit"]);
+          _this.winston.info("Query Parameter 'limit' provided with value " + limC);
+          if (isNaN(limC)) {
+            _this.createJSONErrMsg(res, 400, 'Bad Request Query Parameter provided to the clb-modelloader API for "' + model.getCollection() + '": "limit" parameter is not at number', '0001', _this.errDocUrl + '0001');
+            return;
+          } else {
+            if (limC < model.getQueryLimit()) {
+              limit = limC;
+            }
           }
         }
         if (req.query["fields"] !== void 0) {
@@ -75,12 +89,12 @@
             _this.createJSONErrMsg(res, 400, 'Bad Request Query Parameter provided to the clb-modelloader API for "' + model.getCollection() + '": "maxRec" parameter is not at number', '0002', _this.errDocUrl + '0002');
             return;
           }
-          return _this.getCollection(res, model, skipC, maxRec, projection);
+          return _this.getCollection(res, model, skipC, maxRec, projection, limit);
         } else {
           query = model.getDBModel().find({});
           return query.count(function(err, count) {
             _this.winston.info("Number of records " + count + " skip " + skipC);
-            return _this.getCollection(res, model, skipC, count, projection);
+            return _this.getCollection(res, model, skipC, count, projection, limit);
           });
         }
       });
@@ -160,18 +174,18 @@
       return res.json(errMsg, statusCode);
     };
 
-    ModelLoader.prototype.getCollection = function(res, model, skipC, count, projection) {
+    ModelLoader.prototype.getCollection = function(res, model, skipC, count, projection, limit) {
       var query,
         _this = this;
       this.winston.info("Got projection '" + projection + "'");
-      query = model.getDBModel().find({}, projection).limit(model.getQueryLimit()).skip(skipC).sort({
+      query = model.getDBModel().find({}, projection).limit(limit).skip(skipC).sort({
         "_id": -1
       });
       return query.exec({}, function(err, docs) {
         var countStr, limitStr, skipStr;
         _this.winston.info("Fetched records with skip " + skipC);
         countStr = count + '';
-        limitStr = model.getQueryLimit() + '';
+        limitStr = limit + '';
         skipStr = skipC + '';
         docs.push({
           _maxRec: countStr,

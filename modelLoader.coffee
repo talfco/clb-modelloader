@@ -18,7 +18,8 @@ module.exports = class ModelLoader
     _und.each modelNames, (modelName) =>  
        if modelName != undefined
          suffix = ".coffee"
-         if modelName.indexOf(suffix, modelName.length - suffix.length) != -1
+         suffix1 = ".js"
+         if (modelName.indexOf(suffix, modelName.length - suffix.length) != -1 || modelName.indexOf(suffix1, modelName.length - suffix1.length) != -1)
            modelC = require modelpath + "/" + modelName
            @winston.info "Creating mogoose object for: "+modelName
            model = new modelC({winston: @winston})        
@@ -42,6 +43,20 @@ module.exports = class ModelLoader
             'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "offset" parameter is not at number',
             '0001',@errDocUrl+'0001'     
           return        
+      
+      limit = model.getQueryLimit()
+      if req.query["limit"] != undefined
+        limC = parseInt req.query["limit"]
+        @winston.info "Query Parameter 'limit' provided with value "+limC
+        if isNaN(limC)
+          @.createJSONErrMsg res, 400, 
+            'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "limit" parameter is not at number',
+            '0001',@errDocUrl+'0001'     
+          return
+        else
+          if limC < model.getQueryLimit()
+            limit = limC
+
       if req.query["fields"] != undefined
         projection = {}
         _und.each req.query["fields"].split(","), (elem, index, list) ->
@@ -57,12 +72,12 @@ module.exports = class ModelLoader
             'Bad Request Query Parameter provided to the clb-modelloader API for "'+model.getCollection()+'": "maxRec" parameter is not at number',
             '0002',@errDocUrl+'0002'    
           return
-        @getCollection res,model,skipC,maxRec,projection
+        @getCollection res,model,skipC,maxRec,projection,limit
       else
         query = model.getDBModel().find({})
         query.count  (err, count) => 
           @winston.info "Number of records "+count+" skip "+skipC
-          @getCollection res,model,skipC,count,projection
+          @getCollection res,model,skipC,count,projection,limit
         
     serv.get '/'+@version+'/'+collection+'/:id', (req, res) =>
       @winston.info 'ModelLoader: GET received for '+collection+'  model '+req.params.id
@@ -122,13 +137,13 @@ module.exports = class ModelLoader
     }
     res.json errMsg, statusCode
 
-  getCollection: (res,model,skipC,count,projection) ->  
+  getCollection: (res,model,skipC,count,projection,limit) ->  
     @winston.info "Got projection '"+projection+"'"
-    query = model.getDBModel().find({},projection).limit(model.getQueryLimit()).skip(skipC).sort({"_id":-1})  
+    query = model.getDBModel().find({},projection).limit(limit).skip(skipC).sort({"_id":-1})  
     query.exec {}, (err, docs) => 
       @winston.info "Fetched records with skip "+skipC
       countStr =  count+''
-      limitStr = model.getQueryLimit()+''
+      limitStr = limit+''
       skipStr = skipC+''
       docs.push( _maxRec: countStr, _limit: limitStr, _offset: skipStr);
       if err != null

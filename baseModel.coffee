@@ -6,7 +6,7 @@ module.exports = class BaseModel
   constructor: (@modelName,@collection,schemaJSON,props) ->
     
     if props.winston != undefined
-      props.winston.info "BaseModel: "+ @modelName+" - "+@collection, schemaJSON
+      props.winston.info "BaseModel: "+ @modelName+" - "+@collection+" - schema: ", schemaJSON
     @schema = new mongoose.Schema schemaJSON
     @dbModel = mongoose.model(@modelName, @schema,@collection)
     if props.doc != undefined
