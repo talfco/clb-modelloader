@@ -15,6 +15,5 @@ The library can be easily integrated with a client side Backbone model which res
 For a detailled documentation refer to [http://cloudburo.github.com/docs/opensource/clb-modelloader/](http://cloudburo.github.com/docs/opensource/clb-modelloader)
 
 
-```
-iMac:~ Felix$ ifconfig vboxnet1
+
 
